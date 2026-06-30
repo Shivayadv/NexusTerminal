@@ -2,10 +2,14 @@ import type { Logger } from '../core/logger/Logger'
 import type { ConfigService } from '../services/ConfigService'
 import type { EnvironmentManager } from '../services/EnvironmentManager'
 import type { WindowManager } from '../services/WindowManager'
+import type { WorkspaceService } from '../services/WorkspaceService'
+import type { TerminalManager } from '../terminal/TerminalManager'
 import { registerAppHandlers } from './handlers/app.handlers'
 import { registerConfigHandlers } from './handlers/config.handlers'
 import { registerLogHandlers } from './handlers/log.handlers'
+import { registerTerminalHandlers } from './handlers/terminal.handlers'
 import { registerWindowHandlers } from './handlers/window.handlers'
+import { registerWorkspaceHandlers } from './handlers/workspace.handlers'
 import type { SecureIpcRouter } from './SecureIpcRouter'
 
 /**
@@ -17,6 +21,8 @@ export class IpcManager {
     private readonly router: SecureIpcRouter,
     private readonly windowManager: WindowManager,
     private readonly configService: ConfigService,
+    private readonly workspaceService: WorkspaceService,
+    private readonly terminalManager: TerminalManager,
     private readonly env: EnvironmentManager,
     private readonly logger: Logger,
   ) {}
@@ -26,6 +32,8 @@ export class IpcManager {
     registerWindowHandlers(this.router, this.windowManager, this.logger.child('window'))
     registerConfigHandlers(this.router, this.configService, this.logger.child('config'))
     registerLogHandlers(this.router, this.logger.child('log'))
+    registerWorkspaceHandlers(this.router, this.workspaceService, this.logger.child('workspace'))
+    registerTerminalHandlers(this.router, this.terminalManager, this.logger.child('terminal'))
 
     this.logger.info(
       `IPC: ${this.router.getRegisteredChannels().length} channels registered`,

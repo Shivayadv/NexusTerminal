@@ -9,6 +9,19 @@ export const IPC = {
     GET_PLATFORM: 'app:get-platform',
     GET_ENVIRONMENT: 'app:get-environment',
   },
+  WORKSPACE: {
+    CREATE: 'workspace:create',
+    DELETE: 'workspace:delete',
+    RENAME: 'workspace:rename',
+    OPEN: 'workspace:open',
+    CLOSE: 'workspace:close',
+    RESTORE: 'workspace:restore',
+    LIST: 'workspace:list',
+    LIST_RECENT: 'workspace:list-recent',
+    SEARCH: 'workspace:search',
+    GET_BY_ID: 'workspace:get-by-id',
+    PUSH_CHANGED: 'workspace:push-changed',
+  },
   WINDOW: {
     MINIMIZE: 'window:minimize',
     MAXIMIZE: 'window:maximize',
@@ -26,6 +39,16 @@ export const IPC = {
     RESET: 'config:reset',
     // Push event: main → renderer
     PUSH_CHANGED: 'config:push-changed',
+  },
+  TERMINAL: {
+    CREATE: 'terminal:create',
+    KILL: 'terminal:kill',
+    LIST: 'terminal:list',
+    INPUT: 'terminal:input',
+    RESIZE: 'terminal:resize',
+    // Push: main → renderer
+    PUSH_DATA: 'terminal:push-data',
+    PUSH_EXIT: 'terminal:push-exit',
   },
   LOG: {
     WRITE: 'log:write',

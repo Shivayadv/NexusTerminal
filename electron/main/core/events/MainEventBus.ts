@@ -1,4 +1,6 @@
 import type { AppConfigSchema } from '../../../shared/config-schema'
+import type { Workspace } from '../../database/types'
+import type { ShellType } from '../../../shared/terminal'
 
 /** Typed event catalogue for all inter-service communication in the main process */
 export interface MainEvents {
@@ -20,6 +22,18 @@ export interface MainEvents {
   // Config
   'config:changed': { key: keyof AppConfigSchema; value: unknown }
   'config:reset': undefined
+
+  // Workspace
+  'workspace:created': Workspace
+  'workspace:updated': Workspace
+  'workspace:deleted': { id: string }
+  'workspace:opened': Workspace
+  'workspace:closed': { id: string }
+
+  // Terminal
+  'terminal:created': { id: string; pid: number; shellType: ShellType }
+  'terminal:killed': { id: string }
+  'terminal:exited': { id: string; code: number }
 
   // Error surface
   'error:uncaught': { error: Error }

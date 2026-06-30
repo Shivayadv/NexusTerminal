@@ -1,26 +1,35 @@
 import { useEffect, useState } from 'react'
 
+import type { TerminalDto } from '@electron/shared/terminal'
+import { TerminalView } from '@features/terminal'
+
 import styles from './App.module.css'
 
 export function App() {
-  const [version, setVersion] = useState<string>('')
-  const [platform, setPlatform] = useState<string>('')
+  const [terminal, setTerminal] = useState<TerminalDto | null>(null)
 
   useEffect(() => {
-    void window.electron.app.getVersion().then(setVersion)
-    void window.electron.app.getPlatform().then(setPlatform)
+    let id: string | null = null
+    void window.electron.terminal.create({ shellType: 'powershell' }).then((dto) => {
+      id = dto.id
+      setTerminal(dto)
+    })
+    return () => {
+      if (id) void window.electron.terminal.kill(id)
+    }
   }, [])
 
   return (
     <div className={styles.root}>
       <header className={styles.titleBar}>
         <span className={styles.logo}>NexusTerminal</span>
-        <span className={styles.meta}>
-          v{version} · {platform}
-        </span>
       </header>
-      <main className={styles.workspace}>
-        <p className={styles.ready}>Ready. Environment is configured.</p>
+      <main className={styles.terminalArea}>
+        {terminal ? (
+          <TerminalView terminalId={terminal.id} />
+        ) : (
+          <p className={styles.ready}>Starting terminal…</p>
+        )}
       </main>
     </div>
   )

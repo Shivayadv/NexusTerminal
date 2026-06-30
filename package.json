@@ -14,14 +14,24 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss}\" \"electron/**/*.{ts,js}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,scss}\" \"electron/**/*.{ts,js}\"",
     "typecheck": "tsc --noEmit",
+    "test": "npm run rebuild:node && vitest run && npm run rebuild:electron",
+    "test:watch": "npm run rebuild:node && vitest",
+    "postinstall": "electron-rebuild -f -w better-sqlite3",
+    "rebuild:electron": "electron-rebuild -f -w better-sqlite3",
+    "rebuild:node": "npm rebuild better-sqlite3",
     "prepare": "husky"
   },
   "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/xterm": "^5.5.0",
+    "better-sqlite3": "^12.11.1",
+    "node-pty": "^1.0.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
     "@electron/rebuild": "^3.6.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -41,7 +51,8 @@
     "typescript": "^5.5.2",
     "vite": "^5.3.1",
     "vite-plugin-electron": "^0.28.7",
-    "vite-plugin-electron-renderer": "^0.14.5"
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vitest": "^4.1.9"
   },
   "lint-staged": {
     "*.{ts,tsx,js,jsx}": [
@@ -63,16 +74,25 @@
       "dist-electron/**/*"
     ],
     "win": {
-      "target": ["nsis", "zip"],
+      "target": [
+        "nsis",
+        "zip"
+      ],
       "icon": "assets/icons/icon.ico"
     },
     "mac": {
-      "target": ["dmg", "zip"],
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "icon": "assets/icons/icon.icns",
       "category": "public.app-category.developer-tools"
     },
     "linux": {
-      "target": ["AppImage", "deb"],
+      "target": [
+        "AppImage",
+        "deb"
+      ],
       "icon": "assets/icons/icon.png",
       "category": "Development"
     },

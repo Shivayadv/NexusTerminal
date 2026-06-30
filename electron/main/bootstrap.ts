@@ -1,9 +1,14 @@
+import path from 'path'
+
 import { app } from 'electron'
 
 import { mainContainer } from './core/di/container'
 import { MAIN_TOKENS } from './core/di/tokens'
 import { MainEventBus } from './core/events/MainEventBus'
 import { Logger } from './core/logger/Logger'
+import { DatabaseService } from './database/DatabaseService'
+import { AppStateRepository } from './database/repositories/AppStateRepository'
+import { WorkspaceRepository } from './database/repositories/WorkspaceRepository'
 import { CrashRecovery } from './errors/CrashRecovery'
 import { ErrorHandler } from './errors/ErrorHandler'
 import { IpcManager } from './ipc/IpcManager'
@@ -12,6 +17,11 @@ import { AppLifecycleManager } from './services/AppLifecycleManager'
 import { ConfigService } from './services/ConfigService'
 import { EnvironmentManager } from './services/EnvironmentManager'
 import { WindowManager } from './services/WindowManager'
+import { WorkspaceService } from './services/WorkspaceService'
+import { PtyManager } from './terminal/PtyManager'
+import { TerminalManager } from './terminal/TerminalManager'
+import { IPC } from '../shared/ipc-channels'
+import type { WorkspaceChangeEvent } from '../shared/workspace'
 
 /**
  * Composition root — wires every main-process service into the DI container
@@ -60,6 +70,37 @@ export function bootstrap(): void {
   const configService = mainContainer.resolve<ConfigService>(MAIN_TOKENS.ConfigService)
   Logger.setMinLevel(configService.getLogLevel())
 
+  // 5b. DatabaseService — opens nexus.db in userData, runs migrations
+  mainContainer.register(MAIN_TOKENS.DatabaseService, () =>
+    new DatabaseService(
+      path.join(env.getUserDataPath(), 'nexus.db'),
+      rootLogger.child('Database'),
+    ),
+  )
+  const db = mainContainer.resolve<DatabaseService>(MAIN_TOKENS.DatabaseService)
+  db.initialize()
+
+  // 5c. WorkspaceService
+  mainContainer.register(MAIN_TOKENS.WorkspaceService, () =>
+    new WorkspaceService(
+      new WorkspaceRepository(db),
+      new AppStateRepository(db),
+      eventBus,
+      rootLogger.child('WorkspaceService'),
+    ),
+  )
+  const workspaceService = mainContainer.resolve<WorkspaceService>(MAIN_TOKENS.WorkspaceService)
+
+  // 5d. TerminalManager
+  mainContainer.register(MAIN_TOKENS.TerminalManager, () =>
+    new TerminalManager(
+      new PtyManager(rootLogger.child('PtyManager')),
+      eventBus,
+      rootLogger.child('TerminalManager'),
+    ),
+  )
+  const terminalManager = mainContainer.resolve<TerminalManager>(MAIN_TOKENS.TerminalManager)
+
   // 6. WindowManager
   mainContainer.register(MAIN_TOKENS.WindowManager, () =>
     new WindowManager(env, configService, eventBus, rootLogger.child('WindowManager')),
@@ -74,7 +115,7 @@ export function bootstrap(): void {
 
   // 8. IpcManager
   mainContainer.register(MAIN_TOKENS.IpcManager, () =>
-    new IpcManager(router, windowManager, configService, env, rootLogger.child('IpcManager')),
+    new IpcManager(router, windowManager, configService, workspaceService, terminalManager, env, rootLogger.child('IpcManager')),
   )
   const ipcManager = mainContainer.resolve<IpcManager>(MAIN_TOKENS.IpcManager)
 
@@ -98,6 +139,29 @@ export function bootstrap(): void {
     })
   })
 
+  // Forward workspace events to renderer windows
+  const pushWorkspace = (event: WorkspaceChangeEvent): void => {
+    windowManager.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.WORKSPACE.PUSH_CHANGED, event)
+    })
+  }
+  eventBus.on('workspace:created', (ws) => pushWorkspace({ action: 'created', workspace: ws }))
+  eventBus.on('workspace:updated', (ws) => pushWorkspace({ action: 'updated', workspace: ws }))
+  eventBus.on('workspace:deleted', ({ id }) => pushWorkspace({ action: 'deleted', id }))
+  eventBus.on('workspace:opened', (ws) => pushWorkspace({ action: 'opened', workspace: ws }))
+  eventBus.on('workspace:closed', ({ id }) => pushWorkspace({ action: 'closed', id }))
+
+  // Forward terminal PTY output to renderer windows
+  terminalManager.onData((id, data) => {
+    windowManager.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.TERMINAL.PUSH_DATA, id, data)
+    })
+  })
+  terminalManager.onExit((id, code) => {
+    windowManager.getAllWindows().forEach((win) => {
+      win.webContents.send(IPC.TERMINAL.PUSH_EXIT, id, code)
+    })
+  })
   // Log startup info
   rootLogger.info(`NexusTerminal v${app.getVersion()} started`, {
     env: env.environment,

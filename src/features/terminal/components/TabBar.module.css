@@ -1,0 +1,148 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 34px;
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  flex-shrink: 0;
+  overflow: hidden;
+  user-select: none;
+}
+
+.tabs {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 100%;
+  padding: 0 10px 0 12px;
+  font-size: 12px;
+  color: #8b949e;
+  cursor: pointer;
+  border-right: 1px solid #21262d;
+  white-space: nowrap;
+  min-width: 80px;
+  max-width: 180px;
+  transition: background 0.1s;
+}
+
+.tab:hover {
+  background: #1c2128;
+  color: #e6edf3;
+}
+
+.tab.active {
+  background: #0d1117;
+  color: #e6edf3;
+  border-bottom: 2px solid #58a6ff;
+}
+
+.title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.editInput {
+  flex: 1;
+  background: #21262d;
+  border: 1px solid #58a6ff;
+  border-radius: 3px;
+  color: #e6edf3;
+  font-size: 12px;
+  font-family: inherit;
+  padding: 1px 4px;
+  outline: none;
+  min-width: 0;
+}
+
+.closeTab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: transparent;
+  color: #8b949e;
+  cursor: pointer;
+  border-radius: 3px;
+  font-size: 14px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0;
+  transition: opacity 0.1s, background 0.1s;
+  flex-shrink: 0;
+}
+
+.tab:hover .closeTab,
+.tab.active .closeTab {
+  opacity: 1;
+}
+
+.closeTab:hover {
+  background: #30363d;
+  color: #f85149;
+}
+
+.newTab {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: #8b949e;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 18px;
+  line-height: 1;
+  margin: 0 4px;
+  flex-shrink: 0;
+}
+
+.newTab:hover {
+  background: #21262d;
+  color: #e6edf3;
+}
+
+.paneControls {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  flex-shrink: 0;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 24px;
+  padding: 0 8px;
+  border: none;
+  background: transparent;
+  color: #8b949e;
+  cursor: pointer;
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.action:hover {
+  background: #21262d;
+  color: #e6edf3;
+}

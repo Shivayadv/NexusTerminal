@@ -8,9 +8,10 @@ import styles from './TerminalView.module.css'
 
 interface Props {
   terminalId: string
+  onTitleChange?: (title: string) => void
 }
 
-export function TerminalView({ terminalId }: Props) {
+export function TerminalView({ terminalId, onTitleChange }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -54,7 +55,7 @@ export function TerminalView({ terminalId }: Props) {
     term.open(el)
     fitAddon.fit()
 
-    // Keyboard shortcuts: Ctrl+V to paste, Ctrl+Shift+C to copy
+    // Clipboard shortcuts — intercept before xterm sends to PTY
     term.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown') return true
       if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key === 'C') {
@@ -63,52 +64,58 @@ export function TerminalView({ terminalId }: Props) {
         return false
       }
       if ((event.ctrlKey || event.metaKey) && event.key === 'v') {
-        void navigator.clipboard.readText().then((text) => {
-          if (text) term.paste(text)
-        })
+        void navigator.clipboard.readText().then((text) => { if (text) term.paste(text) })
         return false
       }
       return true
     })
 
-    // User input → PTY
+    // User keystrokes → PTY
     const dataDisposer = term.onData((data) => {
       window.electron.terminal.input(terminalId, data)
     })
 
-    // PTY output → terminal
+    // PTY output → terminal display
     const unsubData = window.electron.terminal.onData((id, data) => {
       if (id === terminalId) term.write(data)
     })
 
-    // PTY exit
+    // PTY process exit
     const unsubExit = window.electron.terminal.onExit((id, code) => {
-      if (id === terminalId) {
+      if (id === terminalId)
         term.write(`\r\n\x1b[90m[Process exited with code ${code}]\x1b[0m\r\n`)
-      }
     })
 
-    // xterm title change (OSC sequences parsed by xterm itself) → window title
+    // Title (OSC sequences parsed by xterm)
     const titleDisposer = term.onTitleChange((title) => {
       void window.electron.window.setTitle(title)
+      onTitleChange?.(title)
     })
 
-    // Resize observer — keeps PTY in sync with DOM size
-    const observer = new ResizeObserver(() => {
-      fitAddon.fit()
-      window.electron.terminal.resize(terminalId, term.cols, term.rows)
+    // Debounced PTY resize — fires after terminal dimensions settle
+    let resizeTimer: ReturnType<typeof setTimeout> | null = null
+    const resizeDisposer = term.onResize(({ cols, rows }) => {
+      if (resizeTimer) clearTimeout(resizeTimer)
+      resizeTimer = setTimeout(() => {
+        window.electron.terminal.resize(terminalId, cols, rows)
+      }, 50)
     })
+
+    // ResizeObserver keeps xterm dimensions in sync with DOM container
+    const observer = new ResizeObserver(() => { fitAddon.fit() })
     observer.observe(el)
 
     return () => {
+      if (resizeTimer) clearTimeout(resizeTimer)
       dataDisposer.dispose()
       titleDisposer.dispose()
+      resizeDisposer.dispose()
       unsubData()
       unsubExit()
       observer.disconnect()
       term.dispose()
     }
-  }, [terminalId])
+  }, [terminalId, onTitleChange])
 
   return <div ref={containerRef} className={styles.terminal} />
 }

@@ -1,1 +1,5 @@
 export { TerminalView } from './TerminalView'
+export { TabBar } from './components/TabBar'
+export { PaneView } from './components/PaneView'
+export { LayoutStore } from './layout/LayoutStore'
+export type { LayoutSnapshot, Tab, PaneNode } from './layout/types'

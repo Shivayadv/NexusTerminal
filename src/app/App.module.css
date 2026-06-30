@@ -5,6 +5,7 @@
   background: var(--color-bg);
   color: var(--color-text);
   font-family: var(--font-mono);
+  overflow: hidden;
 }
 
 .titleBar {
@@ -17,6 +18,7 @@
   border-bottom: 1px solid var(--color-border);
   -webkit-app-region: drag;
   user-select: none;
+  flex-shrink: 0;
 }
 
 .logo {
@@ -26,29 +28,15 @@
   color: var(--color-accent);
 }
 
-.meta {
-  font-size: 11px;
-  color: var(--color-text-muted);
-}
-
-.workspace {
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
 .terminalArea {
   flex: 1;
-  display: flex;
   min-height: 0;
-  padding: 0;
+  display: flex;
+  overflow: hidden;
 }
 
-.ready {
-  font-size: 14px;
-  color: var(--color-text-muted);
-  opacity: 0.7;
+.loading {
+  font-size: 13px;
+  color: #8b949e;
   margin: auto;
 }

@@ -16,6 +16,8 @@ import { SecureIpcRouter } from './ipc/SecureIpcRouter'
 import { AppLifecycleManager } from './services/AppLifecycleManager'
 import { ConfigService } from './services/ConfigService'
 import { EnvironmentManager } from './services/EnvironmentManager'
+import { PerformanceMonitor } from './services/PerformanceMonitor'
+import { UpdateService } from './services/UpdateService'
 import { WindowManager } from './services/WindowManager'
 import { WorkspaceService } from './services/WorkspaceService'
 import { PtyManager } from './terminal/PtyManager'
@@ -125,6 +127,14 @@ export function bootstrap(): void {
   )
   const crashRecovery = mainContainer.resolve<CrashRecovery>(MAIN_TOKENS.CrashRecovery)
 
+  // 9b. PerformanceMonitor — polls memory every 60s, warns if heap > 512 MB
+  const perfMonitor = new PerformanceMonitor(rootLogger.child('PerfMonitor'))
+  perfMonitor.start()
+
+  // 9c. UpdateService — auto-update foundation (Phase 1 stub)
+  const updateService = new UpdateService(rootLogger.child('UpdateService'))
+  updateService.start()
+
   // 10. AppLifecycleManager — start the app
   mainContainer.register(MAIN_TOKENS.AppLifecycleManager, () =>
     new AppLifecycleManager(windowManager, ipcManager, crashRecovery, eventBus, rootLogger.child('Lifecycle')),
@@ -162,8 +172,19 @@ export function bootstrap(): void {
       win.webContents.send(IPC.TERMINAL.PUSH_EXIT, id, code)
     })
   })
+  // Graceful shutdown — kill PTYs and close the database before the process exits.
+  // This runs after all windows are closed and before the Node process exits.
+  app.on('will-quit', () => {
+    rootLogger.info('Will-quit: shutting down services')
+    perfMonitor.stop()
+    updateService.stop()
+    try { terminalManager.destroy() } catch (e) { rootLogger.error('Terminal shutdown error', e) }
+    try { db.close() } catch (e) { rootLogger.error('Database shutdown error', e) }
+    rootLogger.info('Shutdown complete')
+  })
+
   // Log startup info
-  rootLogger.info(`NexusTerminal v${app.getVersion()} started`, {
+  rootLogger.info(`SMux v${app.getVersion()} started`, {
     env: env.environment,
     platform: env.platform,
     arch: env.arch,

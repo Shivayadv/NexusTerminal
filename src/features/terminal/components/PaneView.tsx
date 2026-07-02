@@ -1,9 +1,11 @@
-import React, { useRef } from 'react'
+import { Fragment, useRef, type MouseEvent as ReactMouseEvent, type RefObject } from 'react'
 
 import { TerminalView } from '../TerminalView'
+
+import styles from './PaneView.module.css'
+
 import type { LayoutStore } from '../layout/LayoutStore'
 import type { PaneNode, SplitPane } from '../layout/types'
-import styles from './PaneView.module.css'
 
 interface Props {
   node: PaneNode
@@ -23,6 +25,7 @@ export function PaneView({ node, activePaneId, store }: Props) {
         <TerminalView
           terminalId={node.terminalId}
           onTitleChange={(title) => store.setPaneTitle(node.id, title)}
+          onCwdChange={(cwd) => store.setPaneCwd(node.id, cwd)}
         />
       </div>
     )
@@ -36,7 +39,7 @@ export function PaneView({ node, activePaneId, store }: Props) {
       className={`${styles.split} ${isHorizontal ? styles.horizontal : styles.vertical}`}
     >
       {node.children.map((child, i) => (
-        <React.Fragment key={child.id}>
+        <Fragment key={child.id}>
           <div className={styles.portion} style={{ flex: node.sizes[i] ?? 1 }}>
             <PaneView node={child} activePaneId={activePaneId} store={store} />
           </div>
@@ -46,16 +49,16 @@ export function PaneView({ node, activePaneId, store }: Props) {
               onMouseDown={(e) => startResize(e, i, containerRef, node, store, isHorizontal)}
             />
           )}
-        </React.Fragment>
+        </Fragment>
       ))}
     </div>
   )
 }
 
 function startResize(
-  e: React.MouseEvent,
+  e: ReactMouseEvent<HTMLDivElement>,
   index: number,
-  containerRef: React.RefObject<HTMLDivElement>,
+  containerRef: RefObject<HTMLDivElement>,
   node: SplitPane,
   store: LayoutStore,
   isHorizontal: boolean,

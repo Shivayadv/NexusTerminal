@@ -1,7 +1,8 @@
 import { useRef, useState } from 'react'
 
-import type { Tab } from '../layout/types'
 import styles from './TabBar.module.css'
+
+import type { Tab } from '../layout/types'
 
 interface Props {
   tabs: Tab[]
@@ -10,6 +11,7 @@ interface Props {
   onTabClose: (id: string) => void
   onTabRename: (id: string, title: string) => void
   onNewTab: () => void
+  onDuplicateTab: () => void
   onSplitH: () => void
   onSplitV: () => void
   onClosePane: () => void
@@ -22,6 +24,7 @@ export function TabBar({
   onTabClose,
   onTabRename,
   onNewTab,
+  onDuplicateTab,
   onSplitH,
   onSplitV,
   onClosePane,
@@ -81,6 +84,9 @@ export function TabBar({
         ))}
         <button className={styles.newTab} onClick={onNewTab} title="New tab (Ctrl+T)">
           +
+        </button>
+        <button className={styles.newTab} onClick={onDuplicateTab} title="Duplicate tab">
+          ⎘
         </button>
       </div>
 

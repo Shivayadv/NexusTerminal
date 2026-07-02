@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Lint + type-check (fast, no native builds needed)
+  # -----------------------------------------------------------------------
+  lint-typecheck:
+    name: Lint & Type-check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Type-check
+        run: npm run typecheck
+
+  # -----------------------------------------------------------------------
+  # Unit tests — Node build of better-sqlite3, no Electron required
+  # -----------------------------------------------------------------------
+  test:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild better-sqlite3 for Node
+        run: npm run rebuild:node
+
+      - name: Run tests
+        run: npx vitest run
+
+  # -----------------------------------------------------------------------
+  # Production build — Windows (primary target)
+  # -----------------------------------------------------------------------
+  build-win:
+    name: Build (Windows)
+    runs-on: windows-latest
+    needs: [lint-typecheck, test]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build renderer + Electron
+        run: npm run build:electron
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: smux-win-dist
+          path: dist/
+          retention-days: 7

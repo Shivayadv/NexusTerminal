@@ -25,6 +25,21 @@ export class PtyManager {
 
   constructor(private readonly logger: Logger) {}
 
+  // PowerShell init: wraps existing prompt to emit OSC 7 (CWD) before each prompt line.
+  // Uses -NoLogo -NoExit -Command so the script runs silently before the interactive shell.
+  private static readonly PS_OSC7_INIT =
+    '$__nx=if($function:prompt){$function:prompt}else{{"PS> "}};' +
+    'function prompt{' +
+    '$e=[char]0x1b;$b=[char]0x07;' +
+    // String.raw preserves \\ literally so PS receives the regex pattern \\ (matches one backslash)
+    String.raw`$p=$PWD.Path -replace '\\','/';` +
+    'if($p -notmatch \'^/\'){$p="/$p"};' +
+    '"${e}]7;file://$env:COMPUTERNAME$p${b}$(& $__nx)"}'
+
+  // Bash init: sets PROMPT_COMMAND so bash emits OSC 7 before each prompt.
+  private static readonly BASH_OSC7_INIT =
+    'export PROMPT_COMMAND=\'printf "\\033]7;file://${HOSTNAME:-localhost}${PWD}\\007"\'; history -c\n'
+
   spawn(id: string, options: TerminalCreateOptions): { pid: number; cols: number; rows: number } {
     const shellType = options.shellType ?? 'powershell'
     const cols = options.cols ?? 80
@@ -32,7 +47,12 @@ export class PtyManager {
     const shell = PtyManager.resolveShell(shellType)
     const cwd = options.cwd ?? process.env['USERPROFILE'] ?? process.env['HOME'] ?? process.cwd()
 
-    const ptyProcess = spawn(shell, [], {
+    const isPowerShell = shellType === 'powershell'
+    const shellArgs = isPowerShell
+      ? ['-NoLogo', '-NoExit', '-Command', PtyManager.PS_OSC7_INIT]
+      : []
+
+    const ptyProcess = spawn(shell, shellArgs, {
       name: 'xterm-256color',
       cols,
       rows,
@@ -40,6 +60,13 @@ export class PtyManager {
       env: { ...process.env, TERM: 'xterm-256color' } as Record<string, string>,
       useConpty: process.platform === 'win32',
     })
+
+    // For bash-based shells, inject PROMPT_COMMAND after the shell has started
+    if (shellType === 'gitbash' || shellType === 'wsl') {
+      setTimeout(() => {
+        ptyProcess.write(PtyManager.BASH_OSC7_INIT)
+      }, 400)
+    }
 
     const dataDisposer = ptyProcess.onData((data) => {
       this.dataListeners.forEach((fn) => fn(id, data))

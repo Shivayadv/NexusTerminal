@@ -8,27 +8,37 @@
   overflow: hidden;
 }
 
-.titleBar {
+/* ─── Middle row: activity + sidebar + main ─────────────── */
+
+.body {
+  flex: 1;
+  min-height: 0;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 16px;
-  height: 32px;
-  background: var(--color-surface);
-  border-bottom: 1px solid var(--color-border);
-  -webkit-app-region: drag;
-  user-select: none;
-  flex-shrink: 0;
+  flex-direction: row;
+  overflow: hidden;
 }
 
-.logo {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  color: var(--color-accent);
+/* ─── Main content (tab bar + terminal panes) ────────────── */
+
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-bg);
 }
 
-.terminalArea {
+/* ─── Terminal pane area ────────────────────────────────── */
+
+.terminals {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  overflow: hidden;
+}
+
+.tabPane {
   flex: 1;
   min-height: 0;
   display: flex;
@@ -36,7 +46,8 @@
 }
 
 .loading {
+  font-family: var(--font-ui);
   font-size: 13px;
-  color: #8b949e;
+  color: var(--color-text-muted);
   margin: auto;
 }

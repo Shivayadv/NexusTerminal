@@ -6,13 +6,8 @@
   min-height: 0;
 }
 
-.horizontal {
-  flex-direction: row;
-}
-
-.vertical {
-  flex-direction: column;
-}
+.horizontal { flex-direction: row; }
+.vertical   { flex-direction: column; }
 
 .portion {
   min-width: 0;
@@ -26,24 +21,24 @@
   overflow: hidden;
   border: 1px solid transparent;
   box-sizing: border-box;
-  transition: border-color 0.1s;
+  transition: border-color var(--transition-fast);
 }
 
 .activePane {
-  border-color: #58a6ff55;
+  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 
-/* Resize handles — flex siblings between portions */
+/* Resize handles */
 .handle {
   flex-shrink: 0;
-  background: #21262d;
-  transition: background 0.15s;
+  background: var(--color-border);
+  transition: background var(--transition-fast);
   z-index: 5;
 }
 
 .handle:hover,
 .handle:active {
-  background: #58a6ff;
+  background: var(--color-accent);
 }
 
 .handleH {

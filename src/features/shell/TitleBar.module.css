@@ -1,0 +1,36 @@
+.bar {
+  grid-area: titlebar;
+  height: var(--titlebar-h);
+  background: var(--color-bg);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  /* Electron overlay sits on the right — keep content away from it */
+  padding-right: 148px;
+  user-select: none;
+}
+
+.drag {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  -webkit-app-region: drag;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 14px;
+  color: var(--color-accent);
+}
+
+.name {
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-text);
+}

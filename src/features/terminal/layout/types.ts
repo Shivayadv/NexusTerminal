@@ -8,6 +8,8 @@ export interface TerminalPane {
   terminalId: string
   title: string
   shellType: ShellType
+  cwd?: string       // last known working directory (updated via OSC 7)
+  scrollback?: string // serialized buffer text for session restore
 }
 
 export interface SplitPane {

@@ -1,5 +1,4 @@
 /// <reference types="vite/client" />
-/// <reference types="vite-plugin-electron-renderer/electron-env" />
 
 interface ImportMetaEnv {
   readonly VITE_APP_TITLE: string

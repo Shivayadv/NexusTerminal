@@ -19,6 +19,7 @@
     "noImplicitOverride": true,
     "exactOptionalPropertyTypes": true,
     "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
 
     /* Path Aliases */
     "baseUrl": ".",

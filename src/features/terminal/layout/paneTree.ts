@@ -1,6 +1,6 @@
+import type { LayoutSnapshot, PaneNode, SplitPane, Tab, TerminalPane } from './types'
 import type { ShellType } from '@electron/shared/terminal'
 
-import type { LayoutSnapshot, PaneNode, SplitPane, Tab, TerminalPane } from './types'
 
 export function newId(): string {
   return crypto.randomUUID()
@@ -100,13 +100,13 @@ export function closePane(root: PaneNode, paneId: string): PaneNode | null {
   const idx = root.children.findIndex((c) => c.id === paneId)
   if (idx !== -1) {
     const remaining = root.children.filter((_, i) => i !== idx)
-    if (remaining.length === 1) return remaining[0]!
+    if (remaining.length === 1) return remaining[0]
     const newSizes = root.sizes.filter((_, i) => i !== idx)
     return { ...root, children: remaining, sizes: newSizes }
   }
 
   const newChildren = root.children.map((c) => closePane(c, paneId)).filter((c): c is PaneNode => c !== null)
-  if (newChildren.length === 1) return newChildren[0]!
+  if (newChildren.length === 1) return newChildren[0]
   return { ...root, children: newChildren }
 }
 
@@ -122,6 +122,12 @@ export function setPaneTitle(root: PaneNode, paneId: string, title: string): Pan
   return { ...root, children: root.children.map((c) => setPaneTitle(c, paneId, title)) }
 }
 
+export function setPaneCwd(root: PaneNode, paneId: string, cwd: string): PaneNode {
+  if (root.id === paneId && root.type === 'terminal') return { ...root, cwd }
+  if (root.type !== 'split') return root
+  return { ...root, children: root.children.map((c) => setPaneCwd(c, paneId, cwd)) }
+}
+
 // ---------------------------------------------------------------------------
 // Persistence helpers
 
@@ -131,7 +137,10 @@ export async function respawnLayout(
 ): Promise<LayoutSnapshot> {
   const respawnNode = async (node: PaneNode): Promise<PaneNode> => {
     if (node.type === 'terminal') {
-      const dto = await window.electron.terminal.create({ shellType: node.shellType })
+      const dto = await window.electron.terminal.create({
+        shellType: node.shellType,
+        ...(node.cwd ? { cwd: node.cwd } : {}),
+      })
       return { ...node, terminalId: dto.id }
     }
     const children = await Promise.all(node.children.map(respawnNode))

@@ -42,6 +42,7 @@
     "electron-builder": "^24.13.3",
     "eslint": "^8.57.0",
     "eslint-config-prettier": "^9.1.0",
+    "eslint-import-resolver-typescript": "^2.7.1",
     "eslint-plugin-import": "^2.29.1",
     "eslint-plugin-react": "^7.34.3",
     "eslint-plugin-react-hooks": "^4.6.2",
@@ -64,8 +65,8 @@
     ]
   },
   "build": {
-    "appId": "com.nexusterminal.app",
-    "productName": "NexusTerminal",
+    "appId": "io.smux.app",
+    "productName": "SMux",
     "directories": {
       "output": "release"
     },

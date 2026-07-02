@@ -1,7 +1,7 @@
 export interface AppConfig {
   readonly version: string
   readonly isDev: boolean
-  readonly platform: NodeJS.Platform | string
+  readonly platform: string
 }
 
 export function createAppConfig(overrides: Partial<AppConfig> = {}): AppConfig {

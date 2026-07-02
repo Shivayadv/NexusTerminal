@@ -1,7 +1,10 @@
-import type { ShellType } from '@electron/shared/terminal'
+
+import { evictTerminal, queueScrollback, serializeBuffer } from '../terminalCache'
 
 import * as tree from './paneTree'
-import type { LayoutSnapshot, Tab, TerminalPane } from './types'
+
+import type { LayoutSnapshot, PaneNode, Tab, TerminalPane } from './types'
+import type { ShellType } from '@electron/shared/terminal'
 
 const STORAGE_KEY = 'nexus:terminalLayout'
 
@@ -10,6 +13,7 @@ type Listener = () => void
 export class LayoutStore {
   private state: LayoutSnapshot = { tabs: [], activeTabId: null }
   private readonly listeners = new Set<Listener>()
+  private _initialized = false
 
   // ---------------------------------------------------------------------------
   // useSyncExternalStore interface
@@ -21,13 +25,35 @@ export class LayoutStore {
 
   getSnapshot = (): LayoutSnapshot => this.state
 
+  isInitialized(): boolean {
+    return this._initialized
+  }
+
   // ---------------------------------------------------------------------------
   // Initialise — restore persisted layout or create first tab
 
   async initialize(): Promise<void> {
+    if (this._initialized) return
+    this._initialized = true
+
+    window.addEventListener('beforeunload', () => this.captureScrollback())
+
     const saved = this.loadRaw()
     if (saved && saved.tabs.length > 0) {
+      // Collect scrollback from the saved snapshot before respawning (new terminalIds)
+      const savedScrollbacks = this.collectScrollbacks(saved)
+
       this.state = await tree.respawnLayout(saved)
+
+      // Queue scrollback for replay when each TerminalView mounts
+      const liveTerminalIds = this.collectTerminalIds(this.state)
+      for (const [paneId, scrollback] of savedScrollbacks) {
+        const terminalId = liveTerminalIds.get(paneId)
+        if (terminalId) queueScrollback(terminalId, scrollback)
+      }
+
+      // Clear scrollback from state (captureScrollback on next quit will write fresh ones)
+      this.state = { ...this.state, tabs: this.state.tabs.map((t) => ({ ...t, root: this.clearScrollback(t.root) })) }
       this.persist()
       this.notify()
     } else {
@@ -38,8 +64,8 @@ export class LayoutStore {
   // ---------------------------------------------------------------------------
   // Tab operations
 
-  async createTab(shellType: ShellType = 'powershell'): Promise<void> {
-    const dto = await window.electron.terminal.create({ shellType })
+  async createTab(shellType: ShellType = 'powershell', cwd?: string): Promise<void> {
+    const dto = await window.electron.terminal.create({ shellType, ...(cwd ? { cwd } : {}) })
     const pane: TerminalPane = {
       type: 'terminal',
       id: tree.newId(),
@@ -62,7 +88,10 @@ export class LayoutStore {
     if (!tab) return
 
     const terminals = tree.getAllTerminalPanes(tab.root)
-    await Promise.all(terminals.map((p) => window.electron.terminal.kill(p.terminalId).catch(() => {})))
+    await Promise.all(terminals.map(async (p) => {
+      evictTerminal(p.terminalId)
+      await window.electron.terminal.kill(p.terminalId).catch(() => undefined)
+    }))
 
     const remaining = this.state.tabs.filter((t) => t.id !== tabId)
     const activeTabId =
@@ -89,7 +118,8 @@ export class LayoutStore {
     if (!src) return
     const active = tree.findNode(src.root, src.activePaneId)
     const shellType = active?.type === 'terminal' ? active.shellType : 'powershell'
-    await this.createTab(shellType)
+    const cwd = active?.type === 'terminal' ? active.cwd : undefined
+    await this.createTab(shellType, cwd)
   }
 
   setActiveTab(tabId: string): void {
@@ -117,7 +147,8 @@ export class LayoutStore {
     const pane = tree.findNode(tab.root, paneId)
     if (!pane || pane.type !== 'terminal') return
 
-    await window.electron.terminal.kill(pane.terminalId).catch(() => {})
+    evictTerminal(pane.terminalId)
+    await window.electron.terminal.kill(pane.terminalId).catch(() => undefined)
     const newRoot = tree.closePane(tab.root, paneId)
 
     if (!newRoot) {
@@ -149,6 +180,20 @@ export class LayoutStore {
     this.updateTab(tab.id, { root: newRoot, title: tabTitle })
   }
 
+  /** Called by TerminalView when it detects an OSC 7 CWD change sequence. */
+  setPaneCwd(paneId: string, cwd: string): void {
+    let changed = false
+    const tabs = this.state.tabs.map((tab) => {
+      const newRoot = tree.setPaneCwd(tab.root, paneId, cwd)
+      if (newRoot === tab.root) return tab
+      changed = true
+      return { ...tab, root: newRoot }
+    })
+    if (!changed) return
+    this.state = { ...this.state, tabs }
+    this.persist() // persist silently — no re-render needed
+  }
+
   // ---------------------------------------------------------------------------
 
   private activeTab(): Tab | undefined {
@@ -161,6 +206,56 @@ export class LayoutStore {
       tabs: this.state.tabs.map((t) => (t.id === tabId ? { ...t, ...updates } : t)),
     }
     this.commit()
+  }
+
+  /** Serialize xterm buffers into the stored layout right before the window closes. */
+  private captureScrollback(): void {
+    const tabs = this.state.tabs.map((tab) => ({
+      ...tab,
+      root: this.snapshotScrollback(tab.root),
+    }))
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...this.state, tabs }))
+    } catch { /* storage full */ }
+  }
+
+  private snapshotScrollback(node: PaneNode): PaneNode {
+    if (node.type === 'terminal') {
+      const scrollback = serializeBuffer(node.terminalId)
+      return scrollback ? { ...node, scrollback } : node
+    }
+    return { ...node, children: node.children.map((c) => this.snapshotScrollback(c)) }
+  }
+
+  private clearScrollback(node: PaneNode): PaneNode {
+    if (node.type === 'terminal') {
+      // eslint-disable-next-line @typescript-eslint/no-unused-vars
+      const { scrollback: _drop, ...rest } = node
+      return rest as PaneNode
+    }
+    return { ...node, children: node.children.map((c) => this.clearScrollback(c)) }
+  }
+
+  private collectScrollbacks(snapshot: LayoutSnapshot): Map<string, string> {
+    const map = new Map<string, string>()
+    for (const tab of snapshot.tabs) this.walkScrollbacks(tab.root, map)
+    return map
+  }
+
+  private walkScrollbacks(node: PaneNode, map: Map<string, string>): void {
+    if (node.type === 'terminal') { if (node.scrollback) map.set(node.id, node.scrollback); return }
+    for (const child of node.children) this.walkScrollbacks(child, map)
+  }
+
+  private collectTerminalIds(snapshot: LayoutSnapshot): Map<string, string> {
+    const map = new Map<string, string>()
+    for (const tab of snapshot.tabs) this.walkTerminalIds(tab.root, map)
+    return map
+  }
+
+  private walkTerminalIds(node: PaneNode, map: Map<string, string>): void {
+    if (node.type === 'terminal') { map.set(node.id, node.terminalId); return }
+    for (const child of node.children) this.walkTerminalIds(child, map)
   }
 
   private commit(): void {
